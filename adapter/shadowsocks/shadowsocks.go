@@ -76,8 +76,6 @@ func (s *Shadowsocks) DialPacketConn(ctx context.Context, metadata *proxy.Metada
 const (
 	// 每个 AEAD 数据块最大负载长度（16KB - 1）
 	maxPayloadSize = 0x3FFF
-	// AEAD 认证标签长度
-	tagSize = 16
 )
 
 // ssConn SS AEAD 加密的 TCP 连接

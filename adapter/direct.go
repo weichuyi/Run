@@ -27,14 +27,18 @@ func (d *Direct) DialContext(ctx context.Context, metadata *proxy.Metadata) (net
 	dialer := &net.Dialer{}
 	if d.iface != "" {
 		iface, err := net.InterfaceByName(d.iface)
-		if err == nil && len(iface.Addrs()) > 0 {
+		if err == nil {
 			addr, _ := iface.Addrs()
+			if len(addr) == 0 {
+				goto DIAL
+			}
 			if ipNet, ok := addr[0].(*net.IPNet); ok {
 				dialer.LocalAddr = &net.TCPAddr{IP: ipNet.IP}
 			}
 		}
 	}
 
+	DIAL:
 	conn, err := dialer.DialContext(ctx, "tcp", metadata.Destination())
 	if err != nil {
 		return nil, err
