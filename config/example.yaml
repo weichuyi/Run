@@ -1,0 +1,292 @@
+# Run 配置示例
+# 兼容 Clash/Mihomo 配置格式，同时支持更多扩展特性
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 通用设置
+# ──────────────────────────────────────────────────────────────────────────────
+general:
+  log-level: info         # silent / error / warning / info / debug
+  mode: rule              # rule / global / direct
+  port: 7890              # HTTP 代理端口
+  socks-port: 7891        # SOCKS5 代理端口
+  mixed-port: 7892        # 混合端口（HTTP+SOCKS5）
+  allow-lan: false
+  bind-address: "127.0.0.1"
+  external-controller: "127.0.0.1:9090"
+  external-ui: ""         # Dashboard 静态资源目录
+  secret: ""              # API 认证密钥（建议生产环境设置）
+  ipv6: false
+  test-url: "https://www.gstatic.com/generate_204"
+  test-timeout: 5s
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DNS 设置
+# ──────────────────────────────────────────────────────────────────────────────
+dns:
+  enable: true
+  listen: "0.0.0.0:1053"
+  ipv6: false
+  enhanced-mode: fake-ip   # fake-ip / redir-host
+  fake-ip-range: "198.18.0.0/15"
+  use-hosts: true
+  fake-ip-filter:
+    - "*.lan"
+    - "*.local"
+    - "*.localhost"
+    - "*.internal"
+    - "time.*.com"
+    - "ntp.*.com"
+  # 主 DNS（国内）
+  nameserver:
+    - "https://doh.pub/dns-query"      # 腾讯 DoH
+    - "https://dns.alidns.com/dns-query" # 阿里 DoH
+    - "223.5.5.5"
+    - "119.29.29.29"
+  # 备用 DNS（境外，防污染）
+  fallback:
+    - "https://1.1.1.1/dns-query"
+    - "https://8.8.8.8/dns-query"
+    - "tls://1.1.1.1:853"
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - "240.0.0.0/4"
+  # 底层 DNS（用于解析 DoH 服务器本身的域名）
+  default-nameserver:
+    - "114.114.114.114"
+    - "8.8.8.8"
+  # 按域名路由到指定 DNS
+  nameserver-policy:
+    "geosite:cn": "https://doh.pub/dns-query"
+    "+.github.com": "https://1.1.1.1/dns-query"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TUN 虚拟网卡（系统级代理）
+# ──────────────────────────────────────────────────────────────────────────────
+tun:
+  enable: false
+  stack: mixed             # gvisor / system / mixed
+  device: run0
+  dns-hijack:
+    - "any:53"
+  auto-route: true
+  auto-detect-interface: true
+  strict-route: true
+  inet4-address:
+    - "172.19.0.1/30"
+  inet6-address:
+    - "fdfe:dcba:9876::1/126"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Hosts 映射
+# ──────────────────────────────────────────────────────────────────────────────
+hosts:
+  "mtalk.google.com": "108.177.125.188"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 代理节点
+# ──────────────────────────────────────────────────────────────────────────────
+proxies:
+  # Shadowsocks AEAD
+  - name: "SS-HK"
+    type: ss
+    server: hk.example.com
+    port: 8388
+    cipher: chacha20-ietf-poly1305
+    password: "your-password"
+    udp: true
+
+  # Shadowsocks + WebSocket（通过 CDN 中转）
+  - name: "SS-CDN"
+    type: ss
+    server: cdn.example.com
+    port: 443
+    cipher: aes-256-gcm
+    password: "your-password"
+    plugin: v2ray-plugin
+    plugin-opts:
+      mode: websocket
+      path: "/ws"
+      tls: true
+      host: cdn.example.com
+
+  # VMess + WebSocket + TLS
+  - name: "VMess-US"
+    type: vmess
+    server: us.example.com
+    port: 443
+    uuid: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    alterId: 0
+    cipher: auto
+    tls: true
+    sni: us.example.com
+    network: ws
+    ws-opts:
+      path: "/vmess"
+      headers:
+        Host: us.example.com
+
+  # VLESS + Reality
+  - name: "VLESS-Reality"
+    type: vless
+    server: sg.example.com
+    port: 443
+    uuid: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    flow: xtls-rprx-vision
+    tls: true
+    fingerprint: chrome
+    sni: www.microsoft.com
+
+  # Trojan + TLS
+  - name: "Trojan-JP"
+    type: trojan
+    server: jp.example.com
+    port: 443
+    password: "your-trojan-password"
+    sni: jp.example.com
+    skip-cert-verify: false
+    udp: true
+
+  # Hysteria2
+  - name: "Hy2-GER"
+    type: hysteria2
+    server: de.example.com
+    port: 443
+    password: "your-hy2-password"
+    sni: de.example.com
+    up: "100 Mbps"
+    down: "200 Mbps"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 代理分组
+# ──────────────────────────────────────────────────────────────────────────────
+proxy-groups:
+  # 手动选择
+  - name: "🚀 节点选择"
+    type: select
+    proxies:
+      - "♻️ 自动选择"
+      - "🎯 直连"
+      - "SS-HK"
+      - "VMess-US"
+      - "VLESS-Reality"
+      - "Trojan-JP"
+      - "Hy2-GER"
+
+  # 自动选择（延迟最低）
+  - name: "♻️ 自动选择"
+    type: url-test
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300s
+    tolerance: 50
+    proxies:
+      - "SS-HK"
+      - "VMess-US"
+      - "Trojan-JP"
+
+  # 负载均衡
+  - name: "⚖️ 负载均衡"
+    type: load-balance
+    strategy: consistent-hashing
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300s
+    proxies:
+      - "SS-HK"
+      - "VMess-US"
+      - "Trojan-JP"
+
+  # 故障转移
+  - name: "🔄 故障转移"
+    type: fallback
+    url: "https://www.gstatic.com/generate_204"
+    interval: 180s
+    proxies:
+      - "SS-HK"
+      - "VMess-US"
+      - "Trojan-JP"
+
+  # 国内直连
+  - name: "🎯 直连"
+    type: select
+    proxies:
+      - DIRECT
+
+  # 广告拦截
+  - name: "🛡️ 广告拦截"
+    type: select
+    proxies:
+      - REJECT
+      - DIRECT
+
+  # OpenAI / ChatGPT 专用
+  - name: "🤖 AI"
+    type: select
+    proxies:
+      - "VMess-US"
+      - "Hy2-GER"
+      - "🚀 节点选择"
+
+  # 流媒体专用
+  - name: "🎬 流媒体"
+    type: select
+    proxies:
+      - "SS-HK"
+      - "VMess-US"
+      - "Trojan-JP"
+      - "🚀 节点选择"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 路由规则（从上到下匹配，第一条命中即生效）
+# ──────────────────────────────────────────────────────────────────────────────
+rules:
+  # ── 进程直连 ────────────────────────────────────────────────────────────
+  - PROCESS-NAME,run,DIRECT
+  - PROCESS-NAME,clash,DIRECT
+
+  # ── AI 服务 ─────────────────────────────────────────────────────────────
+  - DOMAIN-SUFFIX,openai.com,🤖 AI
+  - DOMAIN-SUFFIX,anthropic.com,🤖 AI
+  - DOMAIN-SUFFIX,claude.ai,🤖 AI
+  - DOMAIN-KEYWORD,openai,🤖 AI
+
+  # ── 流媒体 ──────────────────────────────────────────────────────────────
+  - DOMAIN-SUFFIX,netflix.com,🎬 流媒体
+  - DOMAIN-SUFFIX,nflximg.com,🎬 流媒体
+  - DOMAIN-SUFFIX,hulu.com,🎬 流媒体
+  - DOMAIN-SUFFIX,disneyplus.com,🎬 流媒体
+  - DOMAIN-SUFFIX,spotify.com,🎬 流媒体
+
+  # ── 广告拦截 ────────────────────────────────────────────────────────────
+  - DOMAIN-SUFFIX,adservice.google.com,🛡️ 广告拦截
+  - DOMAIN-KEYWORD,adtrack,🛡️ 广告拦截
+  - DOMAIN-KEYWORD,analytics,🛡️ 广告拦截
+  - GEOSITE,category-ads-all,🛡️ 广告拦截
+
+  # ── 国内直连（GeoSite 国内域名）────────────────────────────────────────
+  - GEOSITE,cn,🎯 直连
+  - GEOSITE,private,🎯 直连
+
+  # ── 国内 IP 直连 ────────────────────────────────────────────────────────
+  - GEOIP,private,🎯 直连
+  - GEOIP,CN,🎯 直连
+
+  # ── 局域网直连 ──────────────────────────────────────────────────────────
+  - IP-CIDR,192.168.0.0/16,🎯 直连,no-resolve
+  - IP-CIDR,10.0.0.0/8,🎯 直连,no-resolve
+  - IP-CIDR,172.16.0.0/12,🎯 直连,no-resolve
+  - IP-CIDR,127.0.0.0/8,🎯 直连,no-resolve
+  - IP-CIDR6,::1/128,🎯 直连,no-resolve
+  - IP-CIDR6,fc00::/7,🎯 直连,no-resolve
+
+  # ── 最终规则 ────────────────────────────────────────────────────────────
+  - MATCH,🚀 节点选择
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 订阅源
+# ──────────────────────────────────────────────────────────────────────────────
+subscribers:
+  - name: "机场订阅"
+    url: "https://your-airport.com/subscribe?token=xxx"
+    interval: 24h
+    user-agent: "Run/1.0"
