@@ -116,7 +116,7 @@ proxies:
     type: vmess
     server: us.example.com
     port: 443
-    uuid: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    uuid: "00000000-0000-0000-0000-000000000000"
     alterId: 0
     cipher: auto
     tls: true
@@ -132,7 +132,7 @@ proxies:
     type: vless
     server: sg.example.com
     port: 443
-    uuid: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    uuid: "00000000-0000-0000-0000-000000000000"
     flow: xtls-rprx-vision
     tls: true
     fingerprint: chrome

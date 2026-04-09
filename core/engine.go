@@ -153,11 +153,13 @@ func (e *Engine) buildAdapters() error {
 	for _, raw := range e.cfg.Proxies {
 		pc, err := config.ParseProxy(raw)
 		if err != nil {
-			return err
+			log.Warnf("[Config] skip proxy (parse error): %v", err)
+			continue
 		}
 		p, err := e.newAdapter(pc)
 		if err != nil {
-			return err
+			log.Warnf("[Config] skip proxy %s: %v", pc.Name, err)
+			continue
 		}
 		e.adapters[pc.Name] = p
 	}
@@ -177,7 +179,8 @@ func (e *Engine) buildAdapters() error {
 			members = append(members, p)
 		}
 		if len(members) == 0 {
-			return fmt.Errorf("group %s has no valid proxies", gc.Name)
+			log.Warnf("[Config] skip group %s: no valid proxies", gc.Name)
+			continue
 		}
 
 		var gp adapter.Proxy
