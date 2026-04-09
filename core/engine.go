@@ -40,6 +40,7 @@ type Engine struct {
 	adapters  map[string]adapter.Proxy
 	selectors map[string]*adaptergroup.Selector
 
+	onShutdown func()
 	mu sync.RWMutex
 }
 
@@ -267,4 +268,68 @@ func (e *Engine) SelectProxy(groupName, proxyName string) error {
 		return fmt.Errorf("proxy not found in group: %s", proxyName)
 	}
 	return nil
+}
+
+// SetShutdown 设置程序停止回调
+func (e *Engine) SetShutdown(fn func()) {
+	e.onShutdown = fn
+}
+
+// Shutdown 触发程序停止
+func (e *Engine) Shutdown() {
+	if e.onShutdown != nil {
+		e.onShutdown()
+	}
+}
+
+// Groups 返回所有代理组信息
+func (e *Engine) Groups() []api.ProxyGroupInfo {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	var result []api.ProxyGroupInfo
+
+	for name, sel := range e.selectors {
+		members := make([]string, 0, len(sel.Proxies()))
+		for _, p := range sel.Proxies() {
+			members = append(members, p.Name())
+		}
+		cur := ""
+		if c := sel.Current(); c != nil {
+			cur = c.Name()
+		}
+		result = append(result, api.ProxyGroupInfo{Name: name, Type: "selector", Now: cur, Members: members})
+	}
+
+	for name, p := range e.adapters {
+		if _, isSel := e.selectors[name]; isSel {
+			continue
+		}
+		switch g := p.(type) {
+		case *adaptergroup.URLTest:
+			members := make([]string, 0)
+			for _, m := range g.Proxies() {
+				members = append(members, m.Name())
+			}
+			cur := ""
+			if b := g.Best(); b != nil {
+				cur = b.Name()
+			}
+			result = append(result, api.ProxyGroupInfo{Name: name, Type: "url-test", Now: cur, Members: members})
+		case *adaptergroup.Fallback:
+			members := make([]string, 0)
+			for _, m := range g.Proxies() {
+				members = append(members, m.Name())
+			}
+			result = append(result, api.ProxyGroupInfo{Name: name, Type: "fallback", Members: members})
+		case *adaptergroup.LoadBalance:
+			members := make([]string, 0)
+			for _, m := range g.Proxies() {
+				members = append(members, m.Name())
+			}
+			result = append(result, api.ProxyGroupInfo{Name: name, Type: "load-balance", Members: members})
+		}
+	}
+
+	return result
 }

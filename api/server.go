@@ -1,12 +1,25 @@
 package api
 
 import (
+	_ "embed"
 	"net/http"
 	"sort"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/run-proxy/run/adapter"
 )
+
+//go:embed ui/index.html
+var dashboardHTML []byte
+
+// ProxyGroupInfo 代理组信息
+type ProxyGroupInfo struct {
+	Name    string   `json:"name"`
+	Type    string   `json:"type"`
+	Now     string   `json:"now"`
+	Members []string `json:"members"`
+}
 
 // Runtime 是 API 与核心引擎交互的最小接口。
 type Runtime interface {
@@ -15,6 +28,8 @@ type Runtime interface {
 	SetMode(string) error
 	Proxies() map[string]adapter.Proxy
 	SelectProxy(groupName, proxyName string) error
+	Groups() []ProxyGroupInfo
+	Shutdown()
 }
 
 type Server struct {
@@ -27,23 +42,29 @@ func New(addr, secret string, engine Runtime) *Server {
 	r := gin.New()
 	r.Use(gin.Recovery())
 
+	s := &Server{engine: engine}
+
+	// 公开路由（无需认证）
+	r.GET("/ui", s.serveUI)
+
+	// API 路由（可选认证）
+	api := r.Group("/")
 	if secret != "" {
-		r.Use(func(c *gin.Context) {
-			auth := c.GetHeader("Authorization")
-			if auth != "Bearer "+secret {
+		api.Use(func(c *gin.Context) {
+			if c.GetHeader("Authorization") != "Bearer "+secret {
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return
 			}
 			c.Next()
 		})
 	}
-
-	s := &Server{engine: engine}
-	r.GET("/version", s.version)
-	r.GET("/configs", s.getConfig)
-	r.PATCH("/configs", s.patchConfig)
-	r.GET("/proxies", s.getProxies)
-	r.PUT("/proxies/:name", s.putProxy)
+	api.GET("/version", s.version)
+	api.GET("/configs", s.getConfig)
+	api.PATCH("/configs", s.patchConfig)
+	api.GET("/proxies", s.getProxies)
+	api.PUT("/proxies/:name", s.putProxy)
+	api.GET("/groups", s.getGroups)
+	api.POST("/shutdown", s.shutdown)
 
 	s.http = &http.Server{Addr: addr, Handler: r}
 	return s
@@ -121,4 +142,20 @@ func (s *Server) putProxy(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func (s *Server) serveUI(c *gin.Context) {
+	c.Data(http.StatusOK, "text/html; charset=utf-8", dashboardHTML)
+}
+
+func (s *Server) getGroups(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"groups": s.engine.Groups()})
+}
+
+func (s *Server) shutdown(c *gin.Context) {
+	c.Status(http.StatusOK)
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		s.engine.Shutdown()
+	}()
 }

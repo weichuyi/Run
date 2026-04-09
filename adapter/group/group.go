@@ -212,6 +212,15 @@ func (ut *URLTest) Best() adapter.Proxy {
 	return nil
 }
 
+// Proxies 返回所有成员节点
+func (ut *URLTest) Proxies() []adapter.Proxy {
+	ut.mu.RLock()
+	defer ut.mu.RUnlock()
+	res := make([]adapter.Proxy, len(ut.proxies))
+	copy(res, ut.proxies)
+	return res
+}
+
 func (ut *URLTest) DialContext(ctx context.Context, metadata *proxy.Metadata) (net.Conn, error) {
 	// lazy 模式：首次使用时触发测速
 	ut.testOnce.Do(func() {
@@ -324,6 +333,15 @@ func (lb *LoadBalance) DialPacketConn(ctx context.Context, metadata *proxy.Metad
 
 func (lb *LoadBalance) SupportUDP() bool { return false }
 
+// Proxies 返回所有成员节点
+func (lb *LoadBalance) Proxies() []adapter.Proxy {
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
+	res := make([]adapter.Proxy, len(lb.proxies))
+	copy(res, lb.proxies)
+	return res
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Fallback 故障转移分组
 // ──────────────────────────────────────────────────────────────────────────────
@@ -398,6 +416,11 @@ func (f *Fallback) DialPacketConn(ctx context.Context, metadata *proxy.Metadata)
 }
 
 func (f *Fallback) SupportUDP() bool { return false }
+
+// Proxies 返回所有成员节点
+func (f *Fallback) Proxies() []adapter.Proxy {
+	return append([]adapter.Proxy(nil), f.proxies...)
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // 工具函数

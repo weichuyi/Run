@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Run Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Segoe UI',sans-serif;background:#0f172a;color:#cbd5e1;min-height:100vh}
+header{background:#1e293b;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155;box-shadow:0 1px 8px rgba(0,0,0,.4);position:sticky;top:0;z-index:10}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:28px;height:28px;background:linear-gradient(135deg,#3b82f6,#6366f1);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:bold;color:#fff;font-size:14px}
+.logo h1{font-size:18px;font-weight:700;color:#f1f5f9}
+.logo-ver{font-size:11px;color:#64748b;margin-left:4px}
+.mode-btns{display:flex;gap:6px}
+.mode-btn{padding:5px 14px;border:1px solid #334155;background:transparent;color:#94a3b8;border-radius:20px;cursor:pointer;font-size:12px;font-weight:500;transition:all .2s}
+.mode-btn.active{background:#3b82f6;border-color:#3b82f6;color:#fff}
+.mode-btn:hover:not(.active){border-color:#3b82f6;color:#3b82f6}
+.container{max-width:960px;margin:0 auto;padding:24px;padding-bottom:72px}
+.tabs{display:flex;border-bottom:1px solid #334155;margin-bottom:20px}
+.tab{padding:10px 20px;cursor:pointer;color:#64748b;font-size:14px;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab.active{color:#3b82f6;border-bottom-color:#3b82f6}
+.tab:hover:not(.active){color:#94a3b8}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.status-txt{font-size:12px;color:#475569}
+.btn{padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-blue{background:#3b82f6;color:#fff}
+.btn-red{background:#ef4444;color:#fff}
+.proxy-card{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;transition:border-color .15s}
+.proxy-card:hover{border-color:#475569}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.alive{background:#22c55e;box-shadow:0 0 5px #22c55e55}
+.dead{background:#ef4444}
+.unknown{background:#64748b}
+.proxy-name{flex:1;font-size:14px;font-weight:500;color:#e2e8f0;word-break:break-all}
+.tag{font-size:11px;color:#94a3b8;background:#0f172a;border:1px solid #334155;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.latency{font-size:13px;font-weight:600;min-width:56px;text-align:right;white-space:nowrap}
+.lat-good{color:#22c55e}
+.lat-mid{color:#f59e0b}
+.lat-bad{color:#ef4444}
+.lat-none{color:#475569}
+.traffic{font-size:11px;color:#475569;min-width:120px;text-align:right;white-space:nowrap}
+.group-card{background:#1e293b;border:1px solid #334155;border-radius:8px;margin-bottom:10px;overflow:hidden}
+.group-header{padding:14px 16px;display:flex;align-items:center;gap:10px}
+.group-name{flex:1;font-size:14px;font-weight:600;color:#e2e8f0}
+.group-now{font-size:12px;color:#3b82f6}
+.members{padding:0 16px 14px;display:flex;flex-wrap:wrap;gap:8px}
+.mbtn{padding:4px 14px;border:1px solid #334155;background:transparent;color:#94a3b8;border-radius:16px;cursor:pointer;font-size:12px;transition:all .15s}
+.mbtn:hover:not(.sel){border-color:#475569;color:#e2e8f0}
+.mbtn.sel{border-color:#3b82f6;color:#3b82f6;background:rgba(59,130,246,.1)}
+footer{position:fixed;bottom:0;left:0;right:0;background:#1e293b;border-top:1px solid #334155;padding:10px 24px;display:flex;align-items:center;gap:12px}
+.footer-l{font-size:12px;color:#475569;margin-right:auto}
+.pane{display:none}
+.pane.active{display:block}
+.empty{color:#475569;text-align:center;padding:40px;font-size:14px}
+/* Token overlay */
+#token-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}
+#token-overlay.show{display:flex}
+.token-box{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:28px 32px;min-width:320px;text-align:center}
+.token-box h3{color:#f1f5f9;margin-bottom:8px;font-size:16px}
+.token-box p{color:#64748b;font-size:13px;margin-bottom:16px}
+.token-box input{width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:8px 12px;border-radius:6px;font-size:14px;outline:none;margin-bottom:12px}
+.token-box input:focus{border-color:#3b82f6}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">R</div>
+    <h1>Run</h1>
+    <span class="logo-ver" id="ver"></span>
+  </div>
+  <div class="mode-btns">
+    <button class="mode-btn" id="btn-rule"   onclick="setMode('rule')">规则</button>
+    <button class="mode-btn" id="btn-global" onclick="setMode('global')">全局</button>
+    <button class="mode-btn" id="btn-direct" onclick="setMode('direct')">直连</button>
+  </div>
+</header>
+
+<div id="token-overlay">
+  <div class="token-box">
+    <h3>需要认证</h3>
+    <p>请输入 API Secret 以访问控制面板</p>
+    <input id="token-input" type="password" placeholder="Bearer token" onkeydown="if(event.key==='Enter')saveToken()">
+    <button class="btn btn-blue" style="width:100%" onclick="saveToken()">确认</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('proxies')">代理节点</div>
+    <div class="tab"        onclick="showTab('groups')">代理组</div>
+  </div>
+  <div class="toolbar">
+    <span class="status-txt" id="status-txt">加载中...</span>
+    <button class="btn btn-blue" onclick="loadAll()">刷新</button>
+  </div>
+  <div id="pane-proxies" class="pane active"><div id="proxy-list"></div></div>
+  <div id="pane-groups"  class="pane">       <div id="group-list"></div></div>
+</div>
+
+<footer>
+  <span class="footer-l" id="footer-l">Run Proxy 正在运行</span>
+  <button class="btn btn-red" onclick="stopProxy()">停止代理</button>
+</footer>
+
+<script>
+let mode = '';
+let token = localStorage.getItem('run_token') || '';
+
+// ── helpers ──
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+function fmtB(b){ if(!b)return'0B'; if(b<1024)return b+'B'; if(b<1048576)return(b/1024).toFixed(1)+'KB'; if(b<1073741824)return(b/1048576).toFixed(1)+'MB'; return(b/1073741824).toFixed(2)+'GB' }
+function latCls(ms){ if(!ms||ms<=0)return'lat-none'; if(ms<200)return'lat-good'; if(ms<500)return'lat-mid'; return'lat-bad' }
+function latTxt(ms){ return(!ms||ms<=0)?'–':ms+'ms' }
+
+async function api(path, opts={}){
+  if(token) opts.headers = Object.assign({'Authorization':'Bearer '+token}, opts.headers||{});
+  const r = await fetch(path, opts);
+  if(r.status===401){ showTokenOverlay(); throw new Error('401') }
+  return r;
+}
+
+// ── token ──
+function showTokenOverlay(){ document.getElementById('token-overlay').classList.add('show') }
+function saveToken(){
+  token = document.getElementById('token-input').value.trim();
+  localStorage.setItem('run_token', token);
+  document.getElementById('token-overlay').classList.remove('show');
+  loadAll();
+}
+
+// ── tabs ──
+function showTab(n){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(n==='proxies'&&i===0)||(n==='groups'&&i===1)));
+  document.getElementById('pane-proxies').classList.toggle('active',n==='proxies');
+  document.getElementById('pane-groups').classList.toggle('active',n==='groups');
+}
+
+// ── mode ──
+function updateModeBtn(){['rule','global','direct'].forEach(m=>document.getElementById('btn-'+m).classList.toggle('active',mode===m))}
+async function setMode(m){
+  try{ await api('/configs',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:m})}); mode=m; updateModeBtn(); }catch(e){}
+}
+
+// ── load ──
+async function loadVersion(){
+  try{ const d=await(await api('/version')).json(); document.getElementById('ver').textContent='v'+d.version }catch(e){}
+}
+async function loadConfig(){
+  try{ const d=await(await api('/configs')).json(); mode=d.mode; updateModeBtn() }catch(e){}
+}
+async function loadProxies(){
+  try{
+    const d=await(await api('/proxies')).json();
+    renderProxies(d.proxies||{});
+    document.getElementById('status-txt').textContent='更新于 '+new Date().toLocaleTimeString();
+  }catch(e){ if(e.message!=='401') document.getElementById('status-txt').textContent='连接失败' }
+}
+async function loadGroups(){
+  try{ const d=await(await api('/groups')).json(); renderGroups(d.groups||[]) }catch(e){}
+}
+
+// ── render proxies ──
+function renderProxies(proxies){
+  const el=document.getElementById('proxy-list');
+  const list=Object.values(proxies).sort((a,b)=>a.name.localeCompare(b.name));
+  if(!list.length){ el.innerHTML='<div class="empty">暂无代理节点<br><small>请在配置文件中添加 proxies</small></div>'; return }
+  el.innerHTML=list.map(p=>`
+    <div class="proxy-card">
+      <div class="dot ${p.alive?'alive':p.latency>0?'unknown':'dead'}"></div>
+      <span class="proxy-name">${esc(p.name)}</span>
+      <span class="tag">${esc(p.type)}</span>
+      <span class="latency ${latCls(p.latency)}">${latTxt(p.latency)}</span>
+      <span class="traffic">↑${fmtB(p.upload)} ↓${fmtB(p.download)}</span>
+    </div>`).join('');
+}
+
+// ── render groups ──
+function renderGroups(groups){
+  const el=document.getElementById('group-list');
+  if(!groups.length){ el.innerHTML='<div class="empty">暂无代理组<br><small>请在配置文件中添加 proxy-groups</small></div>'; return }
+  el.innerHTML=groups.map(g=>`
+    <div class="group-card">
+      <div class="group-header">
+        <span class="group-name">${esc(g.name)}</span>
+        <span class="tag">${esc(g.type)}</span>
+        ${g.now?`<span class="group-now">当前: ${esc(g.now)}</span>`:''}
+      </div>
+      ${(g.members||[]).length?`<div class="members">${(g.members||[]).map(m=>`
+        <button class="mbtn ${m===g.now?'sel':''}" onclick="selProxy('${esc(g.name)}','${esc(m)}')">${esc(m)}</button>`).join('')}</div>`:''}
+    </div>`).join('');
+}
+
+// ── actions ──
+async function selProxy(group,proxy){
+  try{ await api('/proxies/'+encodeURIComponent(group),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({proxy})}); loadGroups() }catch(e){}
+}
+async function stopProxy(){
+  if(!confirm('确定要停止代理服务吗？')) return;
+  try{
+    await api('/shutdown',{method:'POST'});
+    document.getElementById('footer-l').textContent='代理已停止';
+    document.body.style.filter='grayscale(1)';
+  }catch(e){}
+}
+
+// ── bootstrap ──
+async function loadAll(){ await Promise.all([loadVersion(),loadConfig(),loadProxies(),loadGroups()]) }
+loadAll();
+setInterval(()=>{ loadProxies(); loadGroups() },5000);
+</script>
+</body>
+</html>
