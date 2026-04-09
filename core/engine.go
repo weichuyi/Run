@@ -61,7 +61,8 @@ func New(cfg *config.Config) (*Engine, error) {
 		return nil, err
 	}
 	if len(ruleset) == 0 {
-		ruleset = []rules.Rule{&rules.Match{}}
+		r, _ := rules.Parse("MATCH,DIRECT", nil)
+		ruleset = []rules.Rule{r}
 	}
 	e.router = NewRouter(cfg.General.Mode, ruleset, e.adapters)
 	e.tunnel = NewTunnel(e.router, e.resolver)
