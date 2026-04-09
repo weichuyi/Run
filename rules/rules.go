@@ -407,7 +407,7 @@ func ParseAll(lines []string, opts *ParseOptions) ([]Rule, error) {
 // parsePorts 解析端口列表（支持单个端口和范围，如 "80,443,8080-8090"）
 func parsePorts(s string) ([]uint16, error) {
 	var ports []uint16
-	for _, part := range strings.Split(s, "/") {
+	for _, part := range strings.Split(s, ",") {
 		part = strings.TrimSpace(part)
 		if strings.Contains(part, "-") {
 			var start, end int

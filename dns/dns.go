@@ -8,9 +8,11 @@
 package dns
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -344,7 +346,7 @@ func (u *upstreamClient) dohExchange(ctx context.Context, msg *miekgdns.Msg) (*m
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.dohURL, strings.NewReader(string(packed)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.dohURL, bytes.NewReader(packed))
 	if err != nil {
 		return nil, err
 	}
@@ -361,10 +363,12 @@ func (u *upstreamClient) dohExchange(ctx context.Context, msg *miekgdns.Msg) (*m
 		return nil, fmt.Errorf("DoH 服务器返回 %d", resp.StatusCode)
 	}
 
-	buf := make([]byte, 64*1024)
-	n, _ := resp.Body.Read(buf)
+	buf, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 	ans := new(miekgdns.Msg)
-	if err := ans.Unpack(buf[:n]); err != nil {
+	if err := ans.Unpack(buf); err != nil {
 		return nil, err
 	}
 	return ans, nil
